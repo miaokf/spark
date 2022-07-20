@@ -132,11 +132,12 @@ private[spark] class SortShuffleManager(conf: SparkConf) extends ShuffleManager 
     val baseShuffleHandle = handle.asInstanceOf[BaseShuffleHandle[K, _, C]]
     val (blocksByAddress, canEnableBatchFetch) =
       if (baseShuffleHandle.dependency.isShuffleMergeFinalizedMarked) {
-        val res = SparkEnv.get.mapOutputTracker.getPushBasedShuffleMapSizesByExecutorId(
+        val res = SparkEnv.get.mapOutputTracker.getPushBasedShuffleMapSizesByExecutorId( // 向driver获取当前Executor所需的block信息,
+          // 所以当前SparkEnv属于Executor端的,因而mapOutputTracker的实现是MapOutputTrackerWorker
           handle.shuffleId, startMapIndex, endMapIndex, startPartition, endPartition)
         (res.iter, res.enableBatchFetch)
       } else {
-        val address = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
+        val address = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId( // 向driver获取当前Executor所需的block信息
           handle.shuffleId, startMapIndex, endMapIndex, startPartition, endPartition)
         (address, true)
       }

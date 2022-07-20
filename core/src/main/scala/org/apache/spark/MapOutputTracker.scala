@@ -473,7 +473,7 @@ private[spark] class MapOutputTrackerMasterEndpoint(
       tracker.post(GetMapOutputMessage(shuffleId, context))
 
     case GetMapAndMergeResultStatuses(shuffleId: Int) =>
-      val hostPort = context.senderAddress.hostPort
+      val hostPort = context.senderAddress.hostPort // 获取消息发送者的地址信息
       logInfo(s"Asked to send map/merge result locations for shuffle $shuffleId to $hostPort")
       tracker.post(GetMapAndMergeOutputMessage(shuffleId, context))
 
@@ -516,7 +516,7 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
    */
   protected def askTracker[T: ClassTag](message: Any): T = {
     try {
-      trackerEndpoint.askSync[T](message)
+      trackerEndpoint.askSync[T](message) // trackerEndpoint 无论在driver端还是executor端,实现都是MapOutputTrackerMasterEndpoint
     } catch {
       case e: Exception =>
         logError("Error communicating with MapOutputTracker", e)
@@ -721,7 +721,7 @@ private[spark] class MapOutputTrackerMaster(
       logDebug(s"Handling request to send ${if (needMergeOutput) "map" else "map/merge"}" +
         s" output locations for shuffle $shuffleId to $hostPort")
       if (needMergeOutput) {
-        context.reply(
+        context.reply( //将block信息回复给executor
           shuffleStatus.
             serializedMapAndMergeStatus(broadcastManager, isLocal, minSizeForBroadcast, conf))
       } else {
@@ -1246,7 +1246,7 @@ private[spark] class MapOutputTrackerWorker(conf: SparkConf) extends MapOutputTr
    */
   private val fetchingLock = new KeyLock[Int]
 
-  override def getMapSizesByExecutorId(
+  override def getMapSizesByExecutorId( //向driver端获取block块信息
       shuffleId: Int,
       startMapIndex: Int,
       endMapIndex: Int,
@@ -1389,10 +1389,11 @@ private[spark] class MapOutputTrackerWorker(conf: SparkConf) extends MapOutputTr
           if (fetchedMapStatuses == null || fetchedMergeStatuses == null) {
             logInfo("Doing the fetch; tracker endpoint = " + trackerEndpoint)
             val fetchedBytes =
-              askTracker[(Array[Byte], Array[Byte])](GetMapAndMergeResultStatuses(shuffleId))
+              askTracker[(Array[Byte], Array[Byte])](GetMapAndMergeResultStatuses(shuffleId)) // 向driver端的MapOutputTrackerMasterEndpoint
+            // 发送GetMapAndMergeResultStatuses信息来获取当前Executor所需的block信息
             try {
               fetchedMapStatuses =
-                MapOutputTracker.deserializeOutputStatuses[MapStatus](fetchedBytes._1, conf)
+                MapOutputTracker.deserializeOutputStatuses[MapStatus](fetchedBytes._1, conf) // 将收到的executor端的block块信息反序列化
               fetchedMergeStatuses =
                 MapOutputTracker.deserializeOutputStatuses[MergeStatus](fetchedBytes._2, conf)
             } catch {

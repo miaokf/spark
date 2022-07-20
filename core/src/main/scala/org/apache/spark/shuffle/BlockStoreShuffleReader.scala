@@ -68,7 +68,7 @@ private[spark] class BlockStoreShuffleReader[K, C](
 
   /** Read the combined key-values for this reduce task */
   override def read(): Iterator[Product2[K, C]] = {
-    val wrappedStreams = new ShuffleBlockFetcherIterator(
+    val wrappedStreams = new ShuffleBlockFetcherIterator( // reduce拉取本地和远端的block块数据,存到内部的results中,返回一个迭代器。注意:这里已经从远端获取数据给缓存下来了
       context,
       blockManager.blockStoreClient,
       blockManager,
@@ -76,7 +76,7 @@ private[spark] class BlockStoreShuffleReader[K, C](
       blocksByAddress,
       serializerManager.wrapStream,
       // Note: we use getSizeAsMb when no suffix is provided for backwards compatibility
-      SparkEnv.get.conf.get(config.REDUCER_MAX_SIZE_IN_FLIGHT) * 1024 * 1024,
+      SparkEnv.get.conf.get(config.REDUCER_MAX_SIZE_IN_FLIGHT) * 1024 * 1024, //设置每次reduce拉取的数据量
       SparkEnv.get.conf.get(config.REDUCER_MAX_REQS_IN_FLIGHT),
       SparkEnv.get.conf.get(config.REDUCER_MAX_BLOCKS_IN_FLIGHT_PER_ADDRESS),
       SparkEnv.get.conf.get(config.MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM),
@@ -91,10 +91,11 @@ private[spark] class BlockStoreShuffleReader[K, C](
     val serializerInstance = dep.serializer.newInstance()
 
     // Create a key/value iterator for each stream
-    val recordIter = wrappedStreams.flatMap { case (blockId, wrappedStream) =>
+    val recordIter = wrappedStreams.flatMap { case (blockId, wrappedStream) => // 反序列化每一个block的流,并包装为NextIterator类型迭代器
       // Note: the asKeyValueIterator below wraps a key/value iterator inside of a
       // NextIterator. The NextIterator makes sure that close() is called on the
       // underlying InputStream when all records have been read.
+      // 注意：下面的 KeyValueIterator 将键值迭代器包装在 NextIterator 中。 NextIterator 确保在读取所有记录后在底层 InputStream 上调用 close()。
       serializerInstance.deserializeStream(wrappedStream).asKeyValueIterator
     }
 
@@ -106,14 +107,14 @@ private[spark] class BlockStoreShuffleReader[K, C](
       },
       context.taskMetrics().mergeShuffleReadMetrics())
 
-    // An interruptible iterator must be used here in order to support task cancellation
+    // An interruptible iterator must be used here in order to support task cancellation 此处必须使用可中断的迭代器以支持任务取消
     val interruptibleIter = new InterruptibleIterator[(Any, Any)](context, metricIter)
 
-    val aggregatedIter: Iterator[Product2[K, C]] = if (dep.aggregator.isDefined) {
+    val aggregatedIter: Iterator[Product2[K, C]] = if (dep.aggregator.isDefined) { // 对reduce从map端拉取的数据做聚合操作
       if (dep.mapSideCombine) {
-        // We are reading values that are already combined
+        // We are reading values that are already combined 我们正在读取已经组合的值
         val combinedKeyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, C)]]
-        dep.aggregator.get.combineCombinersByKey(combinedKeyValuesIterator, context)
+        dep.aggregator.get.combineCombinersByKey(combinedKeyValuesIterator, context) // 执行reduce端的聚合函数,对数据进行聚合
       } else {
         // We don't know the value type, but also don't care -- the dependency *should*
         // have made sure its compatible w/ this aggregator, which will convert the value
@@ -125,13 +126,13 @@ private[spark] class BlockStoreShuffleReader[K, C](
       interruptibleIter.asInstanceOf[Iterator[Product2[K, C]]]
     }
 
-    // Sort the output if there is a sort ordering defined.
+    // Sort the output if there is a sort ordering defined. 如果定义了排序顺序，则对输出进行排序。
     val resultIter: Iterator[Product2[K, C]] = dep.keyOrdering match {
       case Some(keyOrd: Ordering[K]) =>
         // Create an ExternalSorter to sort the data.
         val sorter =
           new ExternalSorter[K, C, C](context, ordering = Some(keyOrd), serializer = dep.serializer)
-        sorter.insertAllAndUpdateMetrics(aggregatedIter)
+        sorter.insertAllAndUpdateMetrics(aggregatedIter) // 排序操作
       case None =>
         aggregatedIter
     }

@@ -109,7 +109,7 @@ class ExternalAppendOnlyMap[K, V, C](
   // Write metrics
   private val writeMetrics: ShuffleWriteMetrics = new ShuffleWriteMetrics()
 
-  // Peak size of the in-memory map observed so far, in bytes
+  // Peak size of the in-memory map observed so far, in bytes 到目前为止观察到的内存映射的峰值大小，以字节为单位
   private var _peakMemoryUsedBytes: Long = 0L
   def peakMemoryUsedBytes: Long = _peakMemoryUsedBytes
 
@@ -154,14 +154,14 @@ class ExternalAppendOnlyMap[K, V, C](
 
     while (entries.hasNext) {
       curEntry = entries.next()
-      val estimatedSize = currentMap.estimateSize()
-      if (estimatedSize > _peakMemoryUsedBytes) {
+      val estimatedSize = currentMap.estimateSize() //预估大小
+      if (estimatedSize > _peakMemoryUsedBytes) { // 记录内存占用峰值
         _peakMemoryUsedBytes = estimatedSize
       }
-      if (maybeSpill(currentMap, estimatedSize)) {
+      if (maybeSpill(currentMap, estimatedSize)) { // 先检查是否溢出
         currentMap = new SizeTrackingAppendOnlyMap[K, C]
       }
-      currentMap.changeValue(curEntry._1, update)
+      currentMap.changeValue(curEntry._1, update) // 在将数据添加到map中。这里和shuffleWrite不一样,shuffleWrite是先将数据添加到map中,再检查是否溢出
       addElementsRead()
     }
   }

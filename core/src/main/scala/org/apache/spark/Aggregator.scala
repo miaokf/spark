@@ -46,7 +46,7 @@ case class Aggregator[K, V, C] (
   def combineCombinersByKey(
       iter: Iterator[_ <: Product2[K, C]],
       context: TaskContext): Iterator[(K, C)] = {
-    val combiners = new ExternalAppendOnlyMap[K, C, C](identity, mergeCombiners, mergeCombiners)
+    val combiners = new ExternalAppendOnlyMap[K, C, C](identity, mergeCombiners, mergeCombiners) // 创建reduce端聚合数据结构
     combiners.insertAll(iter)
     updateMetrics(context, combiners)
     combiners.iterator

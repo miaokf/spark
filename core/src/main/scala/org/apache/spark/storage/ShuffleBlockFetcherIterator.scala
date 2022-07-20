@@ -355,6 +355,7 @@ final class ShuffleBlockFetcherIterator(
     // Fetch remote shuffle blocks to disk when the request is too large. Since the shuffle data is
     // already encrypted and compressed over the wire(w.r.t. the related configs), we can just fetch
     // the data and write it to file directly.
+    // 用shuffleClient从远端exceutor下载数据
     if (req.size > maxReqSizeShuffleToMem) {
       shuffleClient.fetchBlocks(address.host, address.port, address.executorId, blockIds.toArray,
         blockFetchingListener, this)
@@ -379,6 +380,7 @@ final class ShuffleBlockFetcherIterator(
     // Partition to local, host-local, push-merged-local, remote (includes push-merged-remote)
     // blocks.Remote blocks are further split into FetchRequests of size at most maxBytesInFlight
     // in order to limit the amount of data in flight
+    // 分区到本地、主机本地、推送合并本地、远程（包括推送合并远程）块。远程块进一步拆分为大小最多为 maxBytesInFlight 的 FetchRequest，以限制传输中的数据量
     val collectedRemoteRequests = new ArrayBuffer[FetchRequest]
     var localBlockBytes = 0L
     var hostLocalBlockBytes = 0L
@@ -690,6 +692,7 @@ final class ShuffleBlockFetcherIterator(
     val pushMergedLocalBlocks = mutable.LinkedHashSet[BlockId]()
     // Partition blocks by the different fetch modes: local, host-local, push-merged-local and
     // remote blocks.
+    //通过不同的获取模式对块进行分区：本地、主机本地、推送合并本地和远程块。
     val remoteRequests = partitionBlocksByFetchMode(
       blocksByAddress, localBlocks, hostLocalBlocksByExecutor, pushMergedLocalBlocks)
     // Add the remote requests into our queue in a random order
@@ -698,7 +701,7 @@ final class ShuffleBlockFetcherIterator(
       "expected reqsInFlight = 0 but found reqsInFlight = " + reqsInFlight +
       ", expected bytesInFlight = 0 but found bytesInFlight = " + bytesInFlight)
 
-    // Send out initial requests for blocks, up to our maxBytesInFlight
+    // Send out initial requests for blocks, up to our maxBytesInFlight 发送获取远端的block块请求,请求数据不能超过maxBytesInFlight
     fetchUpToMaxBytes()
 
     val numDeferredRequest = deferredFetchRequests.values.map(_.size).sum
@@ -1146,7 +1149,7 @@ final class ShuffleBlockFetcherIterator(
     }
 
     // Checks if sending a new fetch request will exceed the max no. of blocks being fetched from a
-    // given remote address.
+    // given remote address.检查发送新的获取请求是否会超过最大数量。从给定的远程地址获取的块数
     def isRemoteAddressMaxedOut(remoteAddress: BlockManagerId, request: FetchRequest): Boolean = {
       numBlocksInFlightPerAddress.getOrElse(remoteAddress, 0) + request.blocks.size >
         maxBlocksInFlightPerAddress
