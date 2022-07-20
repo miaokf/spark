@@ -197,8 +197,8 @@ private[spark] class ExternalSorter[K, V, C](
       while (records.hasNext) {
         addElementsRead()
         kv = records.next()
-        map.changeValue((getPartition(kv._1), kv._1), update)
-        maybeSpillCollection(usingMap = true)
+        map.changeValue((getPartition(kv._1), kv._1), update) // 这里边检查map容量,超出阈值江扩充至2倍,扩充时需要进行数组复制,需要2倍的内存空间
+        maybeSpillCollection(usingMap = true) // 检查是否需要溢出磁盘
       }
     } else {
       // Stick values into our buffer
@@ -219,7 +219,7 @@ private[spark] class ExternalSorter[K, V, C](
   private def maybeSpillCollection(usingMap: Boolean): Unit = {
     var estimatedSize = 0L
     if (usingMap) {
-      estimatedSize = map.estimateSize()
+      estimatedSize = map.estimateSize() // 预估当前map的大小
       if (maybeSpill(map, estimatedSize)) {
         map = new PartitionedAppendOnlyMap[K, C]
       }

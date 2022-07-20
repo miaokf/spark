@@ -81,14 +81,14 @@ private[spark] abstract class Spillable[C](taskMemoryManager: TaskMemoryManager)
    */
   protected def maybeSpill(collection: C, currentMemory: Long): Boolean = {
     var shouldSpill = false
-    if (elementsRead % 32 == 0 && currentMemory >= myMemoryThreshold) {
+    if (elementsRead % 32 == 0 && currentMemory >= myMemoryThreshold) { // 如果数据条数是 32的倍数,并且当前预估的map的内存大于5M
       // Claim up to double our current memory from the shuffle memory pool
-      val amountToRequest = 2 * currentMemory - myMemoryThreshold
-      val granted = acquireMemory(amountToRequest)
-      myMemoryThreshold += granted
+      val amountToRequest = 2 * currentMemory - myMemoryThreshold // 尝试将内存扩容为 当前预估的map大小的两倍
+      val granted = acquireMemory(amountToRequest) // 尝试申请需要的内存  比如  currentMemory=8M  ,扩充两倍就是16M,默认缓冲是5M,所以还要申请 2*8M -5M =11M
+      myMemoryThreshold += granted // 更新阈值
       // If we were granted too little memory to grow further (either tryToAcquire returned 0,
       // or we already had more memory than myMemoryThreshold), spill the current collection
-      shouldSpill = currentMemory >= myMemoryThreshold
+      shouldSpill = currentMemory >= myMemoryThreshold // 这种情况是: 当前需要申请11M内存,但是实际只申请了 2M,即granted=2M。 此时myMemoryThreshold=5+2=7M,但是currentMemory=8M,意味这内存已经放不下了，所以就要溢写磁盘
     }
     shouldSpill = shouldSpill || _elementsRead > numElementsForceSpillThreshold
     // Actually spill
@@ -98,7 +98,7 @@ private[spark] abstract class Spillable[C](taskMemoryManager: TaskMemoryManager)
       spill(collection)
       _elementsRead = 0
       _memoryBytesSpilled += currentMemory
-      releaseMemory()
+      releaseMemory() //溢写磁盘后释放内存
     }
     shouldSpill
   }
