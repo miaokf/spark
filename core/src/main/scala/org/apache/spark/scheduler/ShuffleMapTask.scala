@@ -84,6 +84,7 @@ private[spark] class ShuffleMapTask(
       threadMXBean.getCurrentThreadCpuTime
     } else 0L
     val ser = SparkEnv.get.closureSerializer.newInstance()
+    // 反序列化 taskBinary中封装的RDD和Dep, 就拿到了当前Task所在Stage的最后一个RDD和其dep
     val rddAndDep = ser.deserialize[(RDD[_], ShuffleDependency[_, _, _])](
       ByteBuffer.wrap(taskBinary.value), Thread.currentThread.getContextClassLoader)
     _executorDeserializeTimeNs = System.nanoTime() - deserializeStartTimeNs

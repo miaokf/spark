@@ -56,6 +56,7 @@ private[spark] class ShuffleWriteProcessor extends Serializable with Logging {
         context,
         createMetricsReporter(context))
       writer.write(
+        // 调用当前Task所在Stage的最后一个RDD的iterator方法
         rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
       val mapStatus = writer.stop(success = true)
       if (mapStatus.isDefined) {

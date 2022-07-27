@@ -3006,7 +3006,7 @@ object SparkContext extends Logging {
 
   private def getClusterManager(url: String): Option[ExternalClusterManager] = {
     val loader = Utils.getContextOrSparkClassLoader
-    val serviceLoaders =
+    val serviceLoaders = // 用SPI服务来加载外部的集群管理器,进而创建不同的资源调度器,比如: CoarseGrainedSchedulerBackend
       ServiceLoader.load(classOf[ExternalClusterManager], loader).asScala.filter(_.canCreate(url))
     if (serviceLoaders.size > 1) {
       throw new SparkException(

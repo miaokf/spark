@@ -178,7 +178,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
         scheduler.dagScheduler.shufflePushCompleted(shuffleId, shuffleMergeId, mapIndex)
 
       case ReviveOffers =>
-        makeOffers()
+        makeOffers() // 处理 ReviveOffers消息
 
       case KillTask(taskId, executorId, interruptThread, reason) =>
         executorDataMap.get(executorId) match {
@@ -355,10 +355,11 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
                 (rName, rInfo.availableAddrs.toBuffer)
               }, executorData.resourceProfileId)
         }.toIndexedSeq
+        // task与workOffer按照本地性进行关联,返回 Seq[Seq[TaskDescription]], TaskDescription包装了当前task要发给那个Executor的信息
         scheduler.resourceOffers(workOffers, true)
       }
       if (taskDescs.nonEmpty) {
-        launchTasks(taskDescs)
+        launchTasks(taskDescs) // 启动task
       }
     }
 
@@ -397,15 +398,15 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
     // Launch tasks returned by a set of resource offers
     private def launchTasks(tasks: Seq[Seq[TaskDescription]]): Unit = {
       for (task <- tasks.flatten) {
-        val serializedTask = TaskDescription.encode(task)
-        if (serializedTask.limit() >= maxRpcMessageSize) {
+        val serializedTask = TaskDescription.encode(task) //  TaskDescription 序列化编码
+        if (serializedTask.limit() >= maxRpcMessageSize) { // 序列化的task是否大于128MB
           Option(scheduler.taskIdToTaskSetManager.get(task.taskId)).foreach { taskSetMgr =>
             try {
               var msg = "Serialized task %s:%d was %d bytes, which exceeds max allowed: " +
                 s"${RPC_MESSAGE_MAX_SIZE.key} (%d bytes). Consider increasing " +
                 s"${RPC_MESSAGE_MAX_SIZE.key} or using broadcast variables for large values."
               msg = msg.format(task.taskId, task.index, serializedTask.limit(), maxRpcMessageSize)
-              taskSetMgr.abort(msg)
+              taskSetMgr.abort(msg) // 终止掉task
             } catch {
               case e: Exception => logError("Exception in error callback", e)
             }
@@ -426,7 +427,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
 
           logDebug(s"Launching task ${task.taskId} on executor id: ${task.executorId} hostname: " +
             s"${executorData.executorHost}.")
-
+          // 发送task 到Executor端
           executorData.executorEndpoint.send(LaunchTask(new SerializableBuffer(serializedTask)))
         }
       }

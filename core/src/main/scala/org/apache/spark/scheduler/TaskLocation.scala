@@ -58,12 +58,12 @@ private[spark] object TaskLocation {
   // Identify locations of executors with this prefix.
   val executorLocationTag = "executor_"
 
-  def apply(host: String, executorId: String): TaskLocation = {
+  def apply(host: String, executorId: String): TaskLocation = { // task在Executor中缓存过的,直接调用
     new ExecutorCacheTaskLocation(host, executorId)
   }
 
   /**
-   * Create a TaskLocation from a string returned by getPreferredLocations.
+   * Create a TaskLocation from a string returned by getPreferredLocations 从 getPreferredLocations 返回的字符串创建 TaskLocation.
    * These strings have the form executor_[hostname]_[executorid], [hostname], or
    * hdfs_cache_[hostname], depending on whether the location is cached.
    */
@@ -71,16 +71,19 @@ private[spark] object TaskLocation {
     val hstr = str.stripPrefix(inMemoryLocationTag)
     if (hstr.equals(str)) {
       if (str.startsWith(executorLocationTag)) {
+        // executor_[hostname]_[executorid]
         val hostAndExecutorId = str.stripPrefix(executorLocationTag)
         val splits = hostAndExecutorId.split("_", 2)
         require(splits.length == 2, "Illegal executor location format: " + str)
         val Array(host, executorId) = splits
-        new ExecutorCacheTaskLocation(host, executorId)
+        new ExecutorCacheTaskLocation(host, executorId) // task在Executor中缓存
       } else {
+        // [hostname]
         new HostTaskLocation(str)
       }
     } else {
-      new HDFSCacheTaskLocation(hstr)
+      //hdfs_cache_[hostname]
+      new HDFSCacheTaskLocation(hstr) // task在hdfs上缓存
     }
   }
 }

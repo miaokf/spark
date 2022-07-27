@@ -397,12 +397,15 @@ private[spark] class DAGScheduler(
   def getCacheLocs(rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]] = cacheLocs.synchronized {
     // Note: this doesn't use `getOrElse()` because this method is called O(num tasks) times
     if (!cacheLocs.contains(rdd.id)) {
-      // Note: if the storage level is NONE, we don't need to get locations from block manager.
+      // Note: if the storage level is NONE, we don't need to get locations from block manager. 如果存储级别为 NONE，我们不需要从块管理器获取位置。
       val locs: IndexedSeq[Seq[TaskLocation]] = if (rdd.getStorageLevel == StorageLevel.NONE) {
         IndexedSeq.fill(rdd.partitions.length)(Nil)
       } else {
+        // 一个stage中只有一个RDD,就是该stage的最后一个RDD,所以getCacheLocs(rdd: RDD[_]) 的入参rdd即为stage的最后一个RDD
+        // 如果RDD被缓存了,就可以向driver获取RDD的所有位置信息(RDD缓存默认缓存在当前Executor进程中)
         val blockIds =
           rdd.partitions.indices.map(index => RDDBlockId(rdd.id, index)).toArray[BlockId]
+        // blockManagerMaster向driver端发送GetLocationsMultipleBlockIds消息,获取缓存的RDD的所有分区位置信息
         blockManagerMaster.getLocations(blockIds).map { bms =>
           bms.map(bm => TaskLocation(bm.host, bm.executorId))
         }
@@ -891,7 +894,7 @@ private[spark] class DAGScheduler(
     // SPARK-23626: `RDD.getPartitions()` can be slow, so we eagerly compute
     // `.partitions` on every RDD in the DAG to ensure that `getPartitions()`
     // is evaluated outside of the DAGScheduler's single-threaded event loop:
-    eagerlyComputePartitionsForRddAndAncestors(rdd)
+    eagerlyComputePartitionsForRddAndAncestors(rdd) // 提前计算RDD的分区
 
     val jobId = nextJobId.getAndIncrement()
     if (partitions.isEmpty) {
@@ -1421,7 +1424,7 @@ private[spark] class DAGScheduler(
       case _ =>
     }
 
-    // Figure out the indexes of partition ids to compute.
+    // Figure out the indexes of partition ids to compute.找出要计算的分区 ID 的索引。
     val partitionsToCompute: Seq[Int] = stage.findMissingPartitions()
 
     // Use the scheduling pool, job group, description, etc. from an ActiveJob associated
@@ -1455,6 +1458,7 @@ private[spark] class DAGScheduler(
         outputCommitCoordinator.stageStart(
           stage = s.id, maxPartitionId = s.rdd.partitions.length - 1)
     }
+    // task本地性计算
     val taskIdToLocations: Map[Int, Seq[TaskLocation]] = try {
       stage match {
         case s: ShuffleMapStage =>
@@ -1501,6 +1505,8 @@ private[spark] class DAGScheduler(
       // taskBinaryBytes and partitions are both effected by the checkpoint status. We need
       // this synchronization in case another concurrent job is checkpointing this RDD, so we get a
       // consistent view of both variables.
+      // taskBinaryBytes 和分区都受检查点状态的影响。我们需要这种同步，以防另一个并发作业检查点此 RDD，因此我们可以获得两个变量的一致视图。
+      // 序列化stage的计算逻辑
       RDDCheckpointData.synchronized {
         taskBinaryBytes = stage match {
           case stage: ShuffleMapStage =>
@@ -1543,6 +1549,7 @@ private[spark] class DAGScheduler(
             val locs = taskIdToLocations(id)
             val part = partitions(id)
             stage.pendingPartitions += id
+            // 每一个task中都封装了计算逻辑taskBinary
             new ShuffleMapTask(stage.id, stage.latestInfo.attemptNumber, taskBinary,
               part, stage.numPartitions, locs, properties, serializedTaskMetrics, Option(jobId),
               Option(sc.applicationId), sc.applicationAttemptId, stage.rdd.isBarrier())
@@ -2769,15 +2776,15 @@ private[spark] class DAGScheduler(
     // If the partition has already been visited, no need to re-visit.
     // This avoids exponential path exploration.  SPARK-695
     if (!visited.add((rdd, partition))) {
-      // Nil has already been returned for previously visited partitions.
+      // Nil has already been returned for previously visited partitions.之前访问过的分区已经返回 Nil
       return Nil
     }
-    // If the partition is cached, return the cache locations
+    // If the partition is cached, return the cache locations //  a: 如果stage被提交过过,获取stage中的RDD被缓存过,则直接从缓存中获取
     val cached = getCacheLocs(rdd)(partition)
     if (cached.nonEmpty) {
       return cached
     }
-    // If the RDD has some placement preferences (as is the case for input RDDs), get those
+    // If the RDD has some placement preferences (as is the case for input RDDs), get those  b: 如果 RDD本身记录了location信息,直接获取
     val rddPrefs = rdd.preferredLocations(rdd.partitions(partition)).toList
     if (rddPrefs.nonEmpty) {
       return rddPrefs.filter(_ != null).map(TaskLocation(_))
@@ -2786,7 +2793,7 @@ private[spark] class DAGScheduler(
     // If the RDD has narrow dependencies, pick the first partition of the first narrow dependency
     // that has any placement preferences. Ideally we would choose based on transfer sizes,
     // but this will do for now.
-    rdd.dependencies.foreach {
+    rdd.dependencies.foreach { // 遍历当前rdd的所有窄依赖的父RDD,继续找满足 a ,b 条件的location信息。
       case n: NarrowDependency[_] =>
         for (inPart <- n.getParents(partition)) {
           val locs = getPreferredLocsInternal(n.rdd, inPart, visited)

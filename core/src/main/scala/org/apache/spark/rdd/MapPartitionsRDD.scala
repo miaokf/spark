@@ -48,8 +48,10 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
-  override def compute(split: Partition, context: TaskContext): Iterator[U] =
+  override def compute(split: Partition, context: TaskContext): Iterator[U] = {
+    // 调用自己的compute时,先调用父RDD的iterator进而调用父RDD的compute,父RDD如果还有父RDD继续向上调用
     f(context, split.index, firstParent[T].iterator(split, context))
+  }
 
   override def clearDependencies(): Unit = {
     super.clearDependencies()

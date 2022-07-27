@@ -1703,6 +1703,7 @@ abstract class RDD[T: ClassTag](
    * Return whether this RDD is checkpointed and materialized, either reliably or locally.
    * This is introduced as an alias for `isCheckpointed` to clarify the semantics of the
    * return value. Exposed for testing.
+    * 返回此 RDD 是否已设置检查点并物化，无论是可靠的还是本地的。这是作为 isCheckpointed 的别名引入的，以阐明返回值的语义。暴露用于测试。
    */
   private[spark] def isCheckpointedAndMaterialized: Boolean =
     checkpointData.exists(_.isCheckpointed)

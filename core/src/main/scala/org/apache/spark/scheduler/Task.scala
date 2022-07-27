@@ -136,7 +136,7 @@ private[spark] abstract class Task[T](
     plugins.foreach(_.onTaskStart())
 
     try {
-      runTask(context)
+      runTask(context) // 根据task类型(ShuffleMapTask,ResultTask)调用runTask 运行 Task
     } catch {
       case e: Throwable =>
         // Catch all errors; run task failure callbacks, and rethrow the exception.

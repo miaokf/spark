@@ -138,7 +138,7 @@ private[spark] class TaskSchedulerImpl(
   // Incrementing task IDs
   val nextTaskId = new AtomicLong(0)
 
-  // IDs of the tasks running on each executor
+  // IDs of the tasks running on each executor 每个执行器上运行的任务的 ID
   private val executorIdToRunningTaskIds = new HashMap[String, HashSet[Long]]
 
   // We add executors here when we first get decommission notification for them. Executors can
@@ -277,6 +277,7 @@ private[spark] class TaskSchedulerImpl(
       }
       hasReceivedTask = true
     }
+    // 通知SchedulerBackend 接收工作(task),driver自己给自己发送ReviveOffers消息
     backend.reviveOffers()
   }
 
@@ -509,20 +510,20 @@ private[spark] class TaskSchedulerImpl(
     // Mark each worker as alive and remember its hostname
     // Also track if new executor is added
     var newExecAvail = false
-    for (o <- offers) {
+    for (o <- offers) { // 遍历每个Executor的空闲资源
       if (!hostToExecutors.contains(o.host)) {
         hostToExecutors(o.host) = new HashSet[String]()
       }
       if (!executorIdToRunningTaskIds.contains(o.executorId)) {
         hostToExecutors(o.host) += o.executorId
-        executorAdded(o.executorId, o.host)
+        executorAdded(o.executorId, o.host) // 如果此Executor挂掉了,则重新启动一个
         executorIdToHost(o.executorId) = o.host
         executorIdToRunningTaskIds(o.executorId) = HashSet[Long]()
         newExecAvail = true
       }
     }
     val hosts = offers.map(_.host).distinct
-    for ((host, Some(rack)) <- hosts.zip(getRacksForHosts(hosts))) {
+    for ((host, Some(rack)) <- hosts.zip(getRacksForHosts(hosts))) { //获取机架信息
       hostsByRack.getOrElseUpdate(rack, new HashSet[String]()) += host
     }
 
@@ -542,16 +543,18 @@ private[spark] class TaskSchedulerImpl(
     // Build a list of tasks to assign to each worker.
     // Note the size estimate here might be off with different ResourceProfiles but should be
     // close estimate
+    // 为每一个offer分多少个task,默认这个offer有几个空闲的核,就分配几个task
     val tasks = shuffledOffers.map(o => new ArrayBuffer[TaskDescription](o.cores / CPUS_PER_TASK))
     val availableResources = shuffledOffers.map(_.resources).toArray
     val availableCpus = shuffledOffers.map(o => o.cores).toArray
     val resourceProfileIds = shuffledOffers.map(o => o.resourceProfileId).toArray
+    // 拿到调度队列中的所有可调度的TaskSetManager
     val sortedTaskSets = rootPool.getSortedTaskSetQueue
     for (taskSet <- sortedTaskSets) {
       logDebug("parentName: %s, name: %s, runningTasks: %s".format(
         taskSet.parent.name, taskSet.name, taskSet.runningTasks))
       if (newExecAvail) {
-        taskSet.executorAdded()
+        taskSet.executorAdded() // 重新计算本地性
       }
     }
 
@@ -1173,7 +1176,7 @@ private[spark] class TaskSchedulerImpl(
    * Get racks for multiple hosts.
    *
    * The returned Sequence will be the same length as the hosts argument and can be zipped
-   * together with the hosts argument.
+   * together with the hosts argument.为多台主机获取机架。返回的序列将与主机参数的长度相同，并且可以与主机参数一起压缩
    */
   def getRacksForHosts(hosts: Seq[String]): Seq[Option[String]] = {
     hosts.map(_ => defaultRackValue)

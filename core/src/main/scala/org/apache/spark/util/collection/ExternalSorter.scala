@@ -204,7 +204,10 @@ private[spark] class ExternalSorter[K, V, C](
       // Stick values into our buffer
       while (records.hasNext) {
         addElementsRead()
+
+
         val kv = records.next()
+
         buffer.insert(getPartition(kv._1), kv._1, kv._2.asInstanceOf[C])
         maybeSpillCollection(usingMap = false)
       }

@@ -483,7 +483,7 @@ private[spark] class Executor(
       threadId = Thread.currentThread.getId
       Thread.currentThread.setName(threadName)
       val threadMXBean = ManagementFactory.getThreadMXBean
-      val taskMemoryManager = new TaskMemoryManager(env.memoryManager, taskId)
+      val taskMemoryManager = new TaskMemoryManager(env.memoryManager, taskId) // 给task分配内存管理器
       val deserializeStartTimeNs = System.nanoTime()
       val deserializeStartCpuTime = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
         threadMXBean.getCurrentThreadCpuTime
@@ -491,7 +491,7 @@ private[spark] class Executor(
       Thread.currentThread.setContextClassLoader(replClassLoader)
       val ser = env.closureSerializer.newInstance()
       logInfo(s"Running $taskName")
-      execBackend.statusUpdate(taskId, TaskState.RUNNING, EMPTY_BYTE_BUFFER)
+      execBackend.statusUpdate(taskId, TaskState.RUNNING, EMPTY_BYTE_BUFFER) // 更新task状态
       var taskStartTimeNs: Long = 0
       var taskStartCpu: Long = 0
       startGCTime = computeTotalGcTime()
@@ -504,10 +504,11 @@ private[spark] class Executor(
 
         updateDependencies(
           taskDescription.addedFiles, taskDescription.addedJars, taskDescription.addedArchives)
+        // 反序列化TaskDescription中序列化的serializedTask
         task = ser.deserialize[Task[Any]](
           taskDescription.serializedTask, Thread.currentThread.getContextClassLoader)
         task.localProperties = taskDescription.properties
-        task.setTaskMemoryManager(taskMemoryManager)
+        task.setTaskMemoryManager(taskMemoryManager) // 设置task内存管理器
 
         // If this task has been killed before we deserialized it, let's quit now. Otherwise,
         // continue executing the task.
