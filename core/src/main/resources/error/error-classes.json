@@ -23,6 +23,12 @@
     ],
     "sqlState" : "22005"
   },
+  "CANNOT_INFER_DATE" : {
+    "message" : [
+      "Cannot infer date in schema inference when LegacyTimeParserPolicy is \"LEGACY\". Legacy Date formatter does not support strict date format matching which is required to avoid inferring timestamps and other non-date entries to date."
+    ],
+    "sqlState" : "22007"
+  },
   "CANNOT_PARSE_DECIMAL" : {
     "message" : [
       "Cannot parse decimal"
@@ -50,6 +56,12 @@
   "CAST_OVERFLOW" : {
     "message" : [
       "The value <value> of the type <sourceType> cannot be cast to <targetType> due to an overflow. Use `try_cast` to tolerate overflow and return NULL instead. If necessary set <ansiConfig> to \"false\" to bypass this error."
+    ],
+    "sqlState" : "22005"
+  },
+  "CAST_OVERFLOW_IN_TABLE_INSERT" : {
+    "message" : [
+      "Fail to insert a value of <sourceType> type into the <targetType> type column <columnName> due to an overflow. Use `try_cast` on the input value to tolerate overflow and return NULL instead."
     ],
     "sqlState" : "22005"
   },
@@ -368,6 +380,18 @@
     "message" : [
       "Unable to acquire <requestedBytes> bytes of memory, got <receivedBytes>"
     ]
+  },
+  "UNPIVOT_REQUIRES_VALUE_COLUMNS" : {
+    "message" : [
+      "At least one value column needs to be specified for UNPIVOT, all columns specified as ids"
+    ],
+    "sqlState" : "42000"
+  },
+  "UNPIVOT_VALUE_DATA_TYPE_MISMATCH" : {
+    "message" : [
+      "Unpivot value columns must share a least common type, some types do not: [<types>]"
+    ],
+    "sqlState" : "42000"
   },
   "UNRECOGNIZED_SQL_TYPE" : {
     "message" : [
