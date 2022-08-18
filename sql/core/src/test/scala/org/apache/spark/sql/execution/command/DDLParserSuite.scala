@@ -578,4 +578,10 @@ class DDLParserSuite extends AnalysisTest with SharedSparkSession {
       parser.parsePlan("SHOW CATALOGS LIKE 'defau*'"),
       ShowCatalogsCommand(Some("defau*")))
   }
+
+  test("select student") {
+    val plan = parser.parsePlan("select name from student where age >18")
+    plan
+
+  }
 }

@@ -27,6 +27,12 @@ import org.apache.spark.unsafe.memory.MemoryBlock;
  *   <li>has no bound checking, and thus can crash the JVM process when assert is turned off</li>
  * </ul>
  */
+/**
+ *支持数据存储在堆内和堆外（与申请到的MemoryBlock相关）。
+ * •没有内置的边界检查，如果关闭assert机制，可能会造成JVM的崩溃。
+ * 向LongArray写入数据和从LongArray读取数据的操作都是调用Platform中对应的方法
+ */
+
 public final class LongArray {
 
   // This is a long so that we perform long multiplications when computing offsets.

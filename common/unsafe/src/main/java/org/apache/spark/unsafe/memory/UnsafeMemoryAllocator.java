@@ -26,6 +26,8 @@ public class UnsafeMemoryAllocator implements MemoryAllocator {
 
   @Override
   public MemoryBlock allocate(long size) throws OutOfMemoryError {
+    // 直接使用Platform的allocateMemory方法分配内存，
+    // 这个方法是本地化（Native）的实现，即通过JNI最终调用C和C++实现，类似在C语言中新建一个数组，得到的是绝对内存地址。
     long address = Platform.allocateMemory(size);
     MemoryBlock memory = new MemoryBlock(null, address, size);
     if (MemoryAllocator.MEMORY_DEBUG_FILL_ENABLED) {
@@ -47,7 +49,7 @@ public class UnsafeMemoryAllocator implements MemoryAllocator {
     if (MemoryAllocator.MEMORY_DEBUG_FILL_ENABLED) {
       memory.fill(MemoryAllocator.MEMORY_DEBUG_FILL_FREED_VALUE);
     }
-    Platform.freeMemory(memory.offset);
+    Platform.freeMemory(memory.offset); // 释放内存
     // As an additional layer of defense against use-after-free bugs, we mutate the
     // MemoryBlock to reset its pointer.
     memory.offset = 0;

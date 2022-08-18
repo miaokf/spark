@@ -24,7 +24,6 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 
 import sun.misc.Unsafe;
-
 public final class Platform {
 
   private static final Unsafe _UNSAFE;
@@ -297,6 +296,11 @@ public final class Platform {
     _UNSAFE = unsafe;
 
     if (_UNSAFE != null) {
+      // arrayBaseOffset方法返回的是数组第一个元素地址相对于数组起始地址的偏移值
+      /*
+       Unsafe中还提供了arrayIndexScale方法来得到数组一个元素占用的字节数，
+       这样在确定下标idx的情况下，可以很方便地获取数组元素的偏移值（arrayBaseOffset+arrayIndexScalse * idx）。
+       */
       BOOLEAN_ARRAY_OFFSET = _UNSAFE.arrayBaseOffset(boolean[].class);
       BYTE_ARRAY_OFFSET = _UNSAFE.arrayBaseOffset(byte[].class);
       SHORT_ARRAY_OFFSET = _UNSAFE.arrayBaseOffset(short[].class);
@@ -325,6 +329,7 @@ public final class Platform {
       _unaligned = true;
     } else {
       try {
+        // 通过反射机制来调用java.nio.Bits中的unaligned方法判断底层系统是否支持非对齐访问（Unaligned-Access）模式
         Class<?> bitsClass =
           Class.forName("java.nio.Bits", false, ClassLoader.getSystemClassLoader());
         if (_UNSAFE != null && majorVersion >= 9) {

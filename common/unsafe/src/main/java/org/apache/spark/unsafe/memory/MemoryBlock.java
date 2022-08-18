@@ -24,6 +24,7 @@ import org.apache.spark.unsafe.Platform;
 /**
  * A consecutive block of memory, starting at a {@link MemoryLocation} with a fixed size.
  */
+//  MemoryBlock用来表示一段连续的内存块，在MemoryLocation的基础上增加了内存页编号（pageNumber）和对应数据的大小（length）
 public class MemoryBlock extends MemoryLocation {
 
   /** Special `pageNumber` value for pages which were not allocated by TaskMemoryManagers */

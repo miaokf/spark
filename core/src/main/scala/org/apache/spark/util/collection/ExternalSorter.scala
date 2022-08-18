@@ -197,6 +197,7 @@ private[spark] class ExternalSorter[K, V, C](
       while (records.hasNext) {
         addElementsRead()
         kv = records.next()
+        // key是目标分区id和key组成的元组 (目标分区id,对于shuffleWrite阶段就是reduce的分区id)
         map.changeValue((getPartition(kv._1), kv._1), update) // 这里边检查map容量,超出阈值江扩充至2倍,扩充时需要进行数组复制,需要2倍的内存空间
         maybeSpillCollection(usingMap = true) // 检查是否需要溢出磁盘
       }
@@ -660,7 +661,7 @@ private[spark] class ExternalSorter[K, V, C](
           collection.partitionedDestructiveSortedIterator(Some(keyComparator))))
       }
     } else {
-      // Merge spilled and in-memory data
+      // Merge spilled and in-memory data // 归并排序合并文件
       merge(spills.toSeq, destructiveIterator(
         collection.partitionedDestructiveSortedIterator(comparator)))
     }

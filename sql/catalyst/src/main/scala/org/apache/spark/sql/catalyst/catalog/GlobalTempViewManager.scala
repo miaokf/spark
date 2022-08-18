@@ -38,7 +38,7 @@ import org.apache.spark.sql.errors.QueryCompilationErrors
 class GlobalTempViewManager(val database: String) {
 
   /** List of view definitions, mapping from view name to logical plan. */
-  @GuardedBy("this")
+  @GuardedBy("this") // 其中的key是视图名的字符串，value是视图所对应的LogicalPlan（一般在创建该视图时生成）。需要注意的是，GlobalTempViewManager对视图名是大小写敏感的。
   private val viewDefinitions = new mutable.HashMap[String, TemporaryViewRelation]
 
   /**

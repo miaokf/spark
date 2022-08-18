@@ -111,6 +111,8 @@ class PlanChangeLogger[TreeType <: TreeNode[_]] extends Logging {
   }
 }
 
+// 凡是涉及树型结构的转换过程（如Analyzer逻辑算子树分析过程、Optim izer逻辑算子树的优化过程和后续物理算子树的生成过程等）,
+// 都要实施规则匹配和节点处理，都继承自RuleExecutor[TreeType]抽象类
 abstract class RuleExecutor[TreeType <: TreeNode[_]] extends Logging {
 
   /**
@@ -184,6 +186,8 @@ abstract class RuleExecutor[TreeType <: TreeNode[_]] extends Logging {
    * Executes the batches of rules defined by the subclass. The batches are executed serially
    * using the defined execution strategy. Within each batch, rules are also executed serially.
    */
+    // RuleExecutor的apply(plan:TreeType):TreeType方法会按照batches顺序和batch内的Rules顺序
+    // 对传入的plan里的节点进行迭代处理，处理逻辑由具体Rule子类实现
   def execute(plan: TreeType): TreeType = {
     var curPlan = plan
     val queryExecutionMetrics = RuleExecutor.queryExecutionMeter
@@ -198,7 +202,7 @@ abstract class RuleExecutor[TreeType <: TreeNode[_]] extends Logging {
     }
 
     batches.foreach { batch =>
-      val batchStartPlan = curPlan
+      val batchStartPlan = curPlan // 保存最初的plan
       var iteration = 1
       var lastPlan = curPlan
       var continue = true
@@ -208,7 +212,7 @@ abstract class RuleExecutor[TreeType <: TreeNode[_]] extends Logging {
         curPlan = batch.rules.foldLeft(curPlan) {
           case (plan, rule) =>
             val startTime = System.nanoTime()
-            val result = rule(plan)
+            val result = rule(plan) // 处理逻辑由具体Rule子类实现
             val runTime = System.nanoTime() - startTime
             val effective = !result.fastEquals(plan)
 

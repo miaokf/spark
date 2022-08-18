@@ -58,7 +58,7 @@ private[spark] class ShuffleWriteProcessor extends Serializable with Logging {
       writer.write(
         // 调用当前Task所在Stage的最后一个RDD的iterator方法
         rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
-      val mapStatus = writer.stop(success = true)
+      val mapStatus = writer.stop(success = true) // 得到shuffleWrite写完后的mapStatus信息
       if (mapStatus.isDefined) {
         // Check if sufficient shuffle mergers are available now for the ShuffleMapTask to push
         if (dep.shuffleMergeAllowed && dep.getMergerLocs.isEmpty) {

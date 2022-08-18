@@ -30,7 +30,7 @@ import org.apache.spark.sql.types.StructType
  *
  * Implementations should throw [[NoSuchDatabaseException]] when databases don't exist.
  */
-trait ExternalCatalog {
+trait ExternalCatalog { // （外部系统Catalog）在Spark SQL中，具体实现有InMemoryCatalog和HiveExternalCatalog两种。前者将上述信息存储在内存中，一般用于测试或比较简单的SQL处理；后者利用Hive原数据库来实现持久化的管理，在生产环境中广泛应用
   import CatalogTypes.TablePartitionSpec
 
   // --------------------------------------------------------------------------

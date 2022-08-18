@@ -759,6 +759,16 @@ public final class BytesToBytesMap extends MemoryConsumer {
       assert (klen % 8 == 0);
       assert (vlen % 8 == 0);
       assert (longArray != null);
+    /* 1）根据Key相关信息计算hashcode，利用此hashcode得到存储记录（Record）的地址下标idx。
+       2）根据LongArray中的存储方式，存放fullKeyAddress的是2×idx。
+        3）获取fullKeyAddress的值，若为0，则表示2×idx位置还没有值，返回Location对象，Location包含与下标相关的读取及插入操作。
+      4）若2×idx处不为0，则表示此位置已经有数据，接下来判断2×idx+1处存储的hashcode和生成的hashcode是否相等，以及key相关信息是否相等。
+      5）若上一步各种条件判断相等，找到对应位置返回Location对象，可以插入及读取数据（注：ByBytesToBytesMap不支持删除数据）。
+    （6）若第（4）步中判断不相等，表示发生了hash冲突，与JDKHashMap使用链表解决hash冲突不同，BytesToBytesMap使用开放定址法，探测下一个位置（idx+1），重复步骤（2）。
+    （7）若是首次插入数据，则插入当前的Page，根据pageNum和内存地址Off setAddress生成fullKeyAddress。
+      BytesToBytesMap支持最多229个key。230是小于Integer.MAX_VALUE的2的最大指数，由于每条记录LongArray需要两个位置存储对应信息，所以最多支持229。
+      如果key的数量大于229，应考虑更加合适的UnsafeExternalSorter数据结构。
+    */
 
       // We should not increase number of keys to be MAX_CAPACITY. The usage pattern of this map is
       // lookup + append. If we append key until the number of keys to be MAX_CAPACITY, next time

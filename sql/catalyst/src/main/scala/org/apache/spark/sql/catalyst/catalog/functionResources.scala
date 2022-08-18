@@ -52,7 +52,7 @@ case class FunctionResource(resourceType: FunctionResourceType, uri: String)
  * a function. Because only a SQLContext can load resources, we create this trait
  * to avoid of explicitly passing SQLContext around.
  */
-trait FunctionResourceLoader {
+trait FunctionResourceLoader { // （函数资源加载器）：在Spark SQL中除内置实现的各种函数外，还支持用户自定义的函数和Hive中的各种函数。这些函数往往通过Jar包或文件类型提供
   def loadResource(resource: FunctionResource): Unit
 }
 

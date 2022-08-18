@@ -202,6 +202,7 @@ abstract class Expression extends TreeNode[Expression] {
    */
   protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode
 
+
   /**
    * Returns `true` if this expression and all its children have been resolved to a specific schema
    * and input data types checking passed, and `false` if it still contains any unresolved

@@ -95,7 +95,7 @@ private[sql] object Dataset {
   def ofRows(sparkSession: SparkSession, logicalPlan: LogicalPlan, tracker: QueryPlanningTracker)
     : DataFrame = sparkSession.withActive {
     val qe = new QueryExecution(sparkSession, logicalPlan, tracker)
-    qe.assertAnalyzed()
+    qe.assertAnalyzed() // 检查逻辑计划
     new Dataset[Row](qe, RowEncoder(qe.analyzed.schema))
   }
 }

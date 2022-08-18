@@ -57,6 +57,8 @@ private class MutableInt(var i: Int)
  * The only supported object type is "VIEW" now. In the future, we may support SQL UDF or other
  * objects which contain SQL text.
  */
+// Catalyst中还提供了节点位置功能，即能够根据TreeNode定位到对应的SQL字符串中的行数和起始位置。
+// 该功能在SQL解析发生异常时能够方便用户迅速找到出错的地方
 case class Origin(
     line: Option[Int] = None,
     startPosition: Option[Int] = None,
@@ -211,7 +213,7 @@ abstract class TreeNode[BaseType <: TreeNode[BaseType]] extends Product with Tre
    * Returns a Seq of the children of this node.
    * Children should not change. Immutability required for containsChild optimization
    */
-  def children: Seq[BaseType]
+  def children: Seq[BaseType]  //  Seq[TreeNode]  子节点
 
   lazy val containsChild: Set[TreeNode[_]] = children.toSet
 
@@ -371,7 +373,7 @@ abstract class TreeNode[BaseType <: TreeNode[BaseType]] extends Product with Tre
     }
   }
 
-  final def withNewChildren(newChildren: Seq[BaseType]): BaseType = {
+  final def withNewChildren(newChildren: Seq[BaseType]): BaseType = { // 替换新的子节点
     val childrenIndexedSeq = asIndexedSeq(children)
     val newChildrenIndexedSeq = asIndexedSeq(newChildren)
     assert(newChildrenIndexedSeq.size == childrenIndexedSeq.size, "Incorrect number of children")
@@ -477,6 +479,9 @@ abstract class TreeNode[BaseType <: TreeNode[BaseType]] extends Product with Tre
    *
    * @param rule the function used to transform this nodes children
    */
+    //transformDown 的形参，正是 Catalyst 定义的各种优化规则，
+    // 方法的返回类型还是 TreeNode。另外，transformDown 是个递归函数，
+    // 参数的优化规则会先作用（Apply）于当前节点，然后依次作用到 children 中的子节点，直到整棵树的叶子节点。
   def transformDown(rule: PartialFunction[BaseType, BaseType]): BaseType = {
     transformDownWithPruning(AlwaysProcess.fn, UnknownRuleId)(rule)
   }
@@ -838,7 +843,7 @@ abstract class TreeNode[BaseType <: TreeNode[BaseType]] extends Product with Tre
   override def toString: String = treeString
 
   /** Returns a string representation of the nodes in this tree */
-  final def treeString: String = treeString(verbose = true)
+  final def treeString: String = treeString(verbose = true) // 将TreeNode以树型结构展示
 
   final def treeString(
       verbose: Boolean,

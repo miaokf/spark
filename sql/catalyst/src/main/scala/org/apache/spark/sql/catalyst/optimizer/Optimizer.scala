@@ -388,7 +388,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
    * Implementations of this class should override [[defaultBatches]], and [[nonExcludableRules]]
    * if necessary, instead of this method.
    */
-  final override def batches: Seq[Batch] = {
+  final override def batches: Seq[Batch] = { // Analyzed LogicalPlan 到 Optimizer LogicalPlan所用的规则
     val excludedRulesConf =
       conf.optimizerExcludedRules.toSeq.flatMap(Utils.stringToSeq)
     val excludedRules = excludedRulesConf.filter { ruleName =>

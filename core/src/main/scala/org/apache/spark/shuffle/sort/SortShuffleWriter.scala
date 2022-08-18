@@ -50,6 +50,7 @@ private[spark] class SortShuffleWriter[K, V, C](
 
   /** Write a bunch of records to this task's output */
   override def write(records: Iterator[Product2[K, V]]): Unit = {
+    // 创建ExternalSorter对象，将全部数据插入到该对象中
     sorter = if (dep.mapSideCombine) {
       new ExternalSorter[K, V, C](
         context, dep.aggregator, Some(dep.partitioner), dep.keyOrdering, dep.serializer)
@@ -67,9 +68,9 @@ private[spark] class SortShuffleWriter[K, V, C](
     // (see SPARK-3570).
     val mapOutputWriter = shuffleExecutorComponents.createMapOutputWriter(
       dep.shuffleId, mapId, dep.partitioner.numPartitions)
-    sorter.writePartitionedMapOutput(dep.shuffleId, mapId, mapOutputWriter)
+    sorter.writePartitionedMapOutput(dep.shuffleId, mapId, mapOutputWriter) // 每个分区的map数据写出
     partitionLengths = mapOutputWriter.commitAllPartitions(sorter.getChecksums).getPartitionLengths
-    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId) // 创建MapStatus对象，将Shuffl e数据文件和索引文件的信息进行传输，这样Shuffle数据读取阶段能够知道从哪些节点获取哪些数据。
   }
 
   /** Close this writer, passing along whether the map completed */

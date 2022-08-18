@@ -61,14 +61,23 @@ public class TaskMemoryManager {
   private static final Logger logger = LoggerFactory.getLogger(TaskMemoryManager.class);
 
   /** The number of bits used to address the page table. */
+  // 高位的13bits用来表示页编号(pageNumber)
   private static final int PAGE_NUMBER_BITS = 13;
 
+
+  // 51 处于低位的51bits用来表示在该内存页内部的偏移(offsetInPage)
+  /**
+   这样内存映射的过程，实际上就是先根据内存页编号查询页表(pageTable)，
+   得到对应的内存页，然后得到该页的物理地址，最后在物理地址上加上偏移，
+   得到实际内存物理地址。因此，所有内存地址都可由pageNumber和offsetInPage决定。
+   */
   /** The number of bits used to encode offsets in data pages. */
   @VisibleForTesting
-  static final int OFFSET_BITS = 64 - PAGE_NUMBER_BITS;  // 51
+  static final int OFFSET_BITS = 64 - PAGE_NUMBER_BITS; // 51
+
 
   /** The number of entries in the page table. */
-  private static final int PAGE_TABLE_SIZE = 1 << PAGE_NUMBER_BITS;
+  private static final int PAGE_TABLE_SIZE = 1 << PAGE_NUMBER_BITS; // 8192  每个Task内部可以最多支持PAGE_TABLE_SIZE（8192）个内存页
 
   /**
    * Maximum supported data page size (in bytes). In principle, the maximum addressable page size is
@@ -77,8 +86,26 @@ public class TaskMemoryManager {
    * array, which is (2^31 - 1) * 8 bytes (or about 17 gigabytes). Therefore, we cap this at 17
    * gigabytes.
    */
-  public static final long MAXIMUM_PAGE_SIZE_BYTES = ((1L << 31) - 1) * 8L;
+  /*支持的最大数据页大小（以字节为单位）。原则上，最大可寻址页面大小为 (1L << OFFSET_BITS) 字节，即 2PB。
+  但是，堆上分配器的最大页面大小受限于可以存储在 long[] 数组中的最大数据量，即 (2^31 - 1)* 8 字节（或大约 17 GB）。
+  因此，我们将其上限设置为 17 GB。
+  * */
+  public static final long MAXIMUM_PAGE_SIZE_BYTES = ((1L << 31) - 1) * 8L; // spark内核解析 单个内存页最大16G
 
+  /**
+   * 51位1的二进制掩码，用来计算内存页内部的偏移量
+   * 假设内存页编号表示为pn(pageNumber),偏移量表示为offsetInPage，那么编码成64位地址的过程如以下公式所示:
+   * ((long)pn << OFFSET_BITS)|(off setInPage&MASK_LONG_LOWER_51_BITS)
+   * 这样，如果pn为5，offsetInPage为10，从地址(5,10)经过编码后得到的地址就是5<<51|(10&0x7FFFFFFFFFFFFL)=2621450。
+   *
+   * 解码的过程和上面正好相反，假设内存地址为pagePlusOffsetAddress，内存页编号和偏移量分成两步进行，都是位操作，
+   * 如以下公式所示。需要注意的是，内存页编号pageNumber为整型，偏移量为长整型。
+   * pageNumber= (int)(pagePlusOffsetAddress >>> OFFSET_BITS)
+   * offsetInPage= (pagePlusOffsetAddress & MASK_LONG_LOWER_51_BITS)
+   *
+   * 基于上述分析可知，内存页（page）对应的内存可能来自堆内或堆外。
+   * TaskMemoryManager实现的统一内存编码寻址做到了上层透明，上层逻辑只要操作某段内存地址即可，不需要关心该内存空间来自哪里。
+   */
   /** Bit mask for the lower 51 bits of a long. */
   private static final long MASK_LONG_LOWER_51_BITS = 0x7FFFFFFFFFFFFL;
 
@@ -299,7 +326,7 @@ public class TaskMemoryManager {
   public MemoryBlock allocatePage(long size, MemoryConsumer consumer) {
     assert(consumer != null);
     assert(consumer.getMode() == tungstenMemoryMode);
-    if (size > MAXIMUM_PAGE_SIZE_BYTES) {
+    if (size > MAXIMUM_PAGE_SIZE_BYTES) { // 最大单页17GB
       throw new TooLargePageException(size);
     }
 

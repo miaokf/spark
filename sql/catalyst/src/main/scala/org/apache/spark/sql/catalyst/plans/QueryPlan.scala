@@ -68,7 +68,7 @@ abstract class QueryPlan[PlanType <: QueryPlan[PlanType]]
    * The set of all attributes that are input to this operator by its children.
    */
   def inputSet: AttributeSet =
-    AttributeSet(children.flatMap(_.asInstanceOf[QueryPlan[PlanType]].output))
+    AttributeSet(children.flatMap(_.asInstanceOf[QueryPlan[PlanType]].output)) // 节点的输入属性对应所有子节点的输出
 
   /**
    * The set of all attributes that are produced by this node.
@@ -93,6 +93,7 @@ abstract class QueryPlan[PlanType <: QueryPlan[PlanType]]
 
   /**
    * Attributes that are referenced by expressions but not provided by this node's children.
+    * 表示该节点表达式中涉及的但是其子节点输出中并不包含的属性。
    */
   final def missingInput: AttributeSet = references -- inputSet
 
@@ -245,7 +246,7 @@ abstract class QueryPlan[PlanType <: QueryPlan[PlanType]]
   }
 
   /** Returns all of the expressions present in this query plan operator. */
-  final def expressions: Seq[Expression] = {
+  final def expressions: Seq[Expression] = { // 得到该节点中的所有表达式列表
     // Recursively find all expressions from a traversable.
     def seqToExpressions(seq: Iterable[Any]): Iterable[Expression] = seq.flatMap {
       case e: Expression => e :: Nil

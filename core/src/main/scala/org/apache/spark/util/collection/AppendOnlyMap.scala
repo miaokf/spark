@@ -141,16 +141,19 @@ class AppendOnlyMap[K, V](initialCapacity: Int = 64)
     while (true) {
       val curKey = data(2 * pos)
       if (curKey.eq(null)) {
+        // key 不存在直接放
         val newValue = updateFunc(false, null.asInstanceOf[V])
         data(2 * pos) = k
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
-        incrementSize()
+        incrementSize() //判断是否要扩容
         return newValue
       } else if (k.eq(curKey) || k.equals(curKey)) {
+        // key存在且等于当前位置的key则更新
         val newValue = updateFunc(true, data(2 * pos + 1).asInstanceOf[V])
         data(2 * pos + 1) = newValue.asInstanceOf[AnyRef]
         return newValue
       } else {
+        // key存在但是也不等于当前位置上的key,则二次探测地址,继续上边的逻辑
         val delta = i
         pos = (pos + delta) & mask
         i += 1

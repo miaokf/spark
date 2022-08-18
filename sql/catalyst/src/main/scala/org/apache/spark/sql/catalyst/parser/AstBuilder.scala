@@ -76,6 +76,8 @@ class AstBuilder extends SqlBaseParserBaseVisitor[AnyRef] with SQLConfHelper wit
     }
   }
 
+
+  // 访问astTree的入口,SingleStatementContext是astTree的根节点
   override def visitSingleStatement(ctx: SingleStatementContext): LogicalPlan = withOrigin(ctx) {
     visit(ctx.statement).asInstanceOf[LogicalPlan]
   }
@@ -173,7 +175,7 @@ class AstBuilder extends SqlBaseParserBaseVisitor[AnyRef] with SQLConfHelper wit
       )
     }
   }
-
+  // 访问astTree中的from分支,一直递归访问,直到遇见TableNameContext节点返回
   override def visitFromStatement(ctx: FromStatementContext): LogicalPlan = withOrigin(ctx) {
     val from = visitFromClause(ctx.fromClause)
     val selects = ctx.fromStatementBody.asScala.map { body =>
@@ -632,7 +634,7 @@ class AstBuilder extends SqlBaseParserBaseVisitor[AnyRef] with SQLConfHelper wit
     )
   }
 
-  override def visitNamedExpressionSeq(
+  override def visitNamedExpressionSeq( //递归访问获取astTree的select分支下的所有列名
       ctx: NamedExpressionSeqContext): Seq[Expression] = {
     Option(ctx).toSeq
       .flatMap(_.namedExpression.asScala)

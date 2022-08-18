@@ -146,7 +146,7 @@ final class ShuffleExternalSorter extends MemoryConsumer implements ShuffleCheck
     return getChecksumValues(partitionChecksums);
   }
 
-  /**
+    /**
    * Sorts the in-memory records and writes the sorted records to an on-disk file.
    * This method does not free the sort data structures.
    *

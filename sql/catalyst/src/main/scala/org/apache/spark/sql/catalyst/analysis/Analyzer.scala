@@ -217,7 +217,7 @@ class Analyzer(override val catalogManager: CatalogManager)
       }
     }
   }
-
+// 触发Analyzer执行的是execute方法，即RuleExecutor中的execute方法，该方法会循环地调用规则对逻辑算子树进行分析
   override def execute(plan: LogicalPlan): LogicalPlan = {
     AnalysisContext.withNewAnalysisContext {
       executeSameContext(plan)
@@ -256,7 +256,8 @@ class Analyzer(override val catalogManager: CatalogManager)
     TypeCoercion.typeCoercionRules
   }
 
-  override def batches: Seq[Batch] = Seq(
+  override def batches: Seq[Batch] = Seq( // 未解析的逻辑算子树转换为解析后的算子树所用到的rule
+                                          // Unresolved LogicalPlan 到 Analyzed LogicalPlan
     Batch("Substitution", fixedPoint,
       // This rule optimizes `UpdateFields` expression chains so looks more like optimization rule.
       // However, when manipulating deeply nested schema, `UpdateFields` expression tree could be
