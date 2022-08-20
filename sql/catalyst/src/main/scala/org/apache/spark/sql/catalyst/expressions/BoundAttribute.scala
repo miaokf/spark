@@ -40,7 +40,7 @@ case class BoundReference(ordinal: Int, dataType: DataType, nullable: Boolean)
     accessor(input, ordinal)
   }
 
-  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = { //代码生成
     if (ctx.currentVars != null && ctx.currentVars(ordinal) != null) {
       val oev = ctx.currentVars(ordinal)
       ev.isNull = oev.isNull

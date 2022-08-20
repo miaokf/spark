@@ -130,7 +130,7 @@ private[codegen] case class NewFunctionSpec(
  * A context for codegen, tracking a list of objects that could be passed into generated Java
  * function.
  */
-class CodegenContext extends Logging {
+class CodegenContext extends Logging { // 代码生成的上下文
 
   import CodeGenerator._
 
@@ -183,6 +183,11 @@ class CodegenContext extends Logging {
    * They will be kept as member variables in generated classes like `SpecificProjection`.
    *
    * Exposed for tests only.
+   *
+   * 将表达式的内联可变状态（如 MonotonicallyIncreasingID.count）保存为 2 元组：java 类型、变量名。
+   * 例如， ("int", "count") 将产生代码：
+   * private int count;
+   * 作为成员变量它们将作为成员变量保存在生成的类中，如 SpecificProjection。仅用于测试。
    */
   private[catalyst] val inlinedMutableStates: mutable.ArrayBuffer[(String, String)] =
     mutable.ArrayBuffer.empty[(String, String)]
@@ -246,6 +251,8 @@ class CodegenContext extends Logging {
    * A map containing the mutable states which have been defined so far using
    * `addImmutableStateIfNotExists`. Each entry contains the name of the mutable state as key and
    * its Java type and init code as value.
+   * 包含迄今为止使用 addImmutableStateIfNotExists 定义的可变状态的映射。
+   * 每个条目都包含可变状态的名称作为键，其 Java 类型和初始化代码作为值。
    */
   private val immutableStates: mutable.Map[String, (String, String)] =
     mutable.Map.empty[String, (String, String)]
@@ -1447,9 +1454,12 @@ object CodeGenerator extends Logging {
 
   /**
    * Compile the Java source code into a Java class, using Janino.
+   * 使用 Janino 将 Java 源代码编译成 Java 类
    */
   private[this] def doCompile(code: CodeAndComment): (GeneratedClass, ByteCodeStats) = {
     val evaluator = new ClassBodyEvaluator()
+    /*过CodeGenerator类生成后的代码，由其伴生对象提供的compile方法进行编译，得到GeneratedClass的子类。
+    GeneratedClass仅仅起到封装生成类的作用，在具体应用时会调用generate方法显示地强制转换得到生成的类*/
 
     // A special classloader used to wrap the actual parent classloader of
     // [[org.codehaus.janino.ClassBodyEvaluator]] (see CodeGenerator.doCompile). This classloader
@@ -1459,6 +1469,7 @@ object CodeGenerator extends Logging {
     // find other possible classes (see org.codehaus.janinoClassLoaderIClassLoader's
     // findIClass method). Please also see https://issues.apache.org/jira/browse/SPARK-15622 and
     // https://issues.apache.org/jira/browse/SPARK-11636.
+    // 单独定义了一个ParentClassLoader，这样避免编译过程中抛出ClassNotFoundException异常。
     val parentClassLoader = new ParentClassLoader(Utils.getContextOrSparkClassLoader)
     evaluator.setParentClassLoader(parentClassLoader)
     // Cannot be under package codegen, or fail with java.lang.InstantiationException

@@ -92,7 +92,7 @@ case class ProjectExec(projectList: Seq[NamedExpression], child: SparkPlan)
 
   protected override def doExecute(): RDD[InternalRow] = {
     child.execute().mapPartitionsWithIndexInternal { (index, iter) =>
-      val project = UnsafeProjection.create(projectList, child.output)
+      val project = UnsafeProjection.create(projectList, child.output) // 投影算子逻辑代码生成
       project.initialize(index)
       iter.map(project)
     }
@@ -270,10 +270,10 @@ case class FilterExec(condition: Expression, child: SparkPlan)
   protected override def doExecute(): RDD[InternalRow] = {
     val numOutputRows = longMetric("numOutputRows")
     child.execute().mapPartitionsWithIndexInternal { (index, iter) =>
-      val predicate = Predicate.create(condition, child.output)
+      val predicate = Predicate.create(condition, child.output) // 过滤算子逻辑代码生成
       predicate.initialize(0)
       iter.filter { row =>
-        val r = predicate.eval(row)
+        val r = predicate.eval(row) //表达式求值
         if (r) numOutputRows += 1
         r
       }

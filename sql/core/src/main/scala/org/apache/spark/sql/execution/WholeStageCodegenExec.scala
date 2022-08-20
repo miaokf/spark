@@ -88,6 +88,7 @@ trait CodegenSupport extends SparkPlan {
 
   /**
    * Returns Java source code to process the rows from input RDD.
+   * produce/doProduce则用来“生产”，返回的是该节点及其子节点所生成的代码
    */
   final def produce(ctx: CodegenContext, parent: CodegenSupport): String = executeQuery {
     this.parent = parent
@@ -147,6 +148,7 @@ trait CodegenSupport extends SparkPlan {
    * Consume the generated columns or row from current SparkPlan, call its parent's `doConsume()`.
    *
    * Note that `outputVars` and `row` can't both be null.
+   * consume和doConsume用来“消费”，返回的是该CodegenSupport节点处理数据核心逻辑所对应生成的代码
    */
   final def consume(ctx: CodegenContext, outputVars: Seq[ExprCode], row: String = null): String = {
     val inputVarsCandidate =
@@ -478,6 +480,10 @@ trait InputRDDCodegen extends CodegenSupport {
     } else {
       ""
     }
+
+    /*InputAdapter中doProduce方法的代码如下，可以看到，
+    生成的代码框架基于while语句循环，不断地读入数据行（row），
+    并将数据行的处理交给consume方法完成。*/
     s"""
        | while ($limitNotReachedCond $input.hasNext()) {
        |   InternalRow $row = (InternalRow) $input.next();
@@ -654,12 +660,12 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
    *
    * @return the tuple of the codegen context and the actual generated source.
    */
-  def doCodeGen(): (CodegenContext, CodeAndComment) = {
+  def doCodeGen(): (CodegenContext, CodeAndComment) = { // 全阶段代码生成的入口
     val startTime = System.nanoTime()
     val ctx = new CodegenContext
     val code = child.asInstanceOf[CodegenSupport].produce(ctx, this)
 
-    // main next function.
+    // main next function.processNext方法（用于循环处理RDD中的数据行）
     ctx.addNewFunction("processNext",
       s"""
         protected void processNext() throws java.io.IOException {
@@ -668,7 +674,7 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
        """, inlineToOuterClass = true)
 
     val className = generatedClassName()
-
+    // generate静态方法来构造Generated Iterator对象
     val source = s"""
       public Object generate(Object[] references) {
         return new $className(references);
